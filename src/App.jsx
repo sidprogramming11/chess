@@ -2,586 +2,904 @@ import { useState, useEffect, useCallback } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 
-// ─── COURSE DATA ────────────────────────────────────────────────────────────
-// Each line is a sequence of moves. The trainer plays white moves automatically
-// and prompts the user to play black moves (or vice versa).
-// playerColor: which side the learner plays
-// moves: full move sequence in UCI format (e4, e5, Nf3, Nc6, ...)
-
 const COURSES = [
   {
-    id: "italian",
-    title: "Italian Game",
-    badge: "Beginner",
-    description: "The classic 1.e4 e5 — learn the key ideas, plans, and variations.",
-    duration: "2h 10m",
-    free: true,
-    lines: [
-      {
-        id: "giuoco-piano",
-        title: "Main line — Giuoco Piano",
-        playerColor: "black",
-        explanation: "You play Black. White will make moves automatically. Your job is to find Black's correct response each time. The hint will tell you which piece to move and where.",
-        moves: ["e4","e5","Nf3","Nc6","Bc4","Bc5","c3","Nf6","d4","exd4","cxd4","Bb4+","Bd2","Bxd2+","Nbxd2","d5"],
-        moveExplanations: {
-          "e5":    "Claim your share of the center symmetrically.",
-          "Nc6":   "Defend the e5 pawn and develop a piece — two goals at once.",
-          "Bc5":   "Mirror White's bishop. Both bishops eye the center diagonally.",
-          "Nf6":   "Attack White's e4 pawn and develop your knight to its best square.",
-          "exd4":  "Capture in the center — open the position for your pieces.",
-          "Bb4+":  "Check! Force White to deal with the threat before castling.",
-          "Bxd2+": "Take the bishop and give another check — keep the initiative.",
-          "d5":    "Strike the center! This is the key freeing move for Black.",
-        },
-      },
-      {
-        id: "two-knights",
-        title: "Variation — Two Knights Defense",
-        playerColor: "black",
-        explanation: "Instead of 3...Bc5, Black plays 3...Nf6 — a more aggressive, counterattacking choice.",
-        moves: ["e4","e5","Nf3","Nc6","Bc4","Nf6","Ng5","d5","exd5","Na5","Bb5+","c6","dxc6","bxc6","Be2","h6","Nf3","e4"],
-        moveExplanations: {
-          "e5":   "Claim the center.",
-          "Nc6":  "Develop and defend e5.",
-          "Nf6":  "The Two Knights! Attack e4 immediately instead of mirroring with Bc5.",
-          "d5":   "The only correct response to Ng5 — counterattack in the center.",
-          "Na5":  "Attack the bishop and gain time. Don't capture on d5 yet.",
-          "c6":   "Accept the pawn sacrifice — this is the Ulvestad/main line.",
-          "bxc6": "Recapture and open the b-file for your rook.",
-          "h6":   "Kick the knight away from g5.",
-          "e4":   "Gain space and push White's knight back.",
-        },
-      },
-      {
-        id: "evans-gambit",
-        title: "Variation — Evans Gambit",
-        playerColor: "black",
-        explanation: "White sacrifices a pawn with 4.b4 to gain rapid development. Black must know how to handle it.",
-        moves: ["e4","e5","Nf3","Nc6","Bc4","Bc5","b4","Bxb4","c3","Ba5","d4","exd4","O-O","Nf6","cxd4","d6"],
-        moveExplanations: {
-          "e5":   "Claim the center.",
-          "Nc6":  "Develop and defend.",
-          "Bc5":  "The Italian bishop — sets up the Evans.",
-          "Bxb4": "Accept the gambit! Take the pawn.",
-          "Ba5":  "Retreat safely. Don't let White fork with c3.",
-          "exd4": "Capture in the center and open lines.",
-          "Nf6":  "Develop with tempo, attacking e4.",
-          "d6":   "Solidify your center and prepare to develop the dark bishop.",
-        },
-      },
+    id:"italian", title:"Italian Game", badge:"Beginner",
+    description:"The classic 1.e4 e5 — all key lines and variations.",
+    duration:"3h", free:true, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"giuoco-piano", title:"Giuoco Piano — Main Line", playerColor:"black",
+        explanation:"You play Black. White plays automatically. Find the correct move each turn.",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Bc5","c3","Nf6","d4","exd4","cxd4","Bb4+","Bd2","Bxd2+","Nbxd2","d5"],
+        moveExplanations:{"e5":"Claim the center.","Nc6":"Develop and defend e5.","Bc5":"Mirror White's bishop.","Nf6":"Attack e4 and develop.","exd4":"Open the position.","Bb4+":"Check — force White to react.","Bxd2+":"Take the bishop with check.","d5":"Strike the center!"}},
+      { id:"two-knights", title:"Two Knights Defense", playerColor:"black",
+        explanation:"The aggressive 3...Nf6 — counterattack instead of mirror.",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Nf6","Ng5","d5","exd5","Na5","Bb5+","c6","dxc6","bxc6","Be2","h6","Nf3","e4"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","Nf6":"Two Knights — attack e4!","d5":"Counter against Ng5.","Na5":"Attack the bishop.","c6":"Accept the sacrifice.","bxc6":"Open the b-file.","h6":"Kick the knight.","e4":"Gain space."}},
+      { id:"evans-gambit", title:"Evans Gambit", playerColor:"black",
+        explanation:"White sacrifices b4 for rapid development.",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Bc5","b4","Bxb4","c3","Ba5","d4","exd4","O-O","Nf6","cxd4","d6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","Bc5":"Italian setup.","Bxb4":"Accept the gambit!","Ba5":"Retreat safely.","exd4":"Open lines.","Nf6":"Develop with tempo.","d6":"Consolidate."}},
+      { id:"fried-liver", title:"Fried Liver Attack", playerColor:"white",
+        explanation:"You play White. Sacrifice the knight on f7!",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Nf6","Ng5","d5","exd5","Nxd5","Nxf7","Kxf7","Qf3+","Ke6","Nc3","Ncb4","O-O","c6","d4","Nd3"],
+        moveExplanations:{"e4":"Center.","Nf3":"Develop.","Bc4":"Target f7.","Ng5":"Attack f7.","exd5":"Open lines.","Nxf7":"The sacrifice!","Qf3+":"Check — expose the king.","Nc3":"Develop with threats.","O-O":"Castle.","d4":"Open more lines."}},
+      { id:"giuoco-pianissimo", title:"Giuoco Pianissimo", playerColor:"black",
+        explanation:"The 'very quiet game' — slow strategic play.",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Bc5","d3","Nf6","Nc3","d6","h3","O-O","O-O","a6","a4","Ba7"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","Bc5":"Italian.","Nf6":"Develop.","d6":"Solid center.","O-O":"Castle.","a6":"Prevent Nb5.","Ba7":"Reposition."}},
     ],
   },
   {
-    id: "sicilian",
-    title: "Sicilian Defense",
-    badge: "Intermediate",
-    description: "The most combative reply to 1.e4 — asymmetric, rich, and deeply strategic.",
-    duration: "4h 30m",
-    free: false,
-    lines: [
-      {
-        id: "najdorf",
-        title: "Main line — Najdorf Variation",
-        playerColor: "black",
-        explanation: "You play Black in the sharpest Sicilian variation, beloved by Fischer and Kasparov.",
-        moves: ["e4","c5","Nf3","d6","d4","cxd4","Nxd4","Nf6","Nc3","a6","Bg5","e6","f4","Be7","Qf3","Qc7"],
-        moveExplanations: {
-          "c5":   "The Sicilian — fight for the center from the flank.",
-          "d6":   "Prepare Nf6 and keep options open.",
-          "cxd4": "Capture in the center — open the c-file for your rook.",
-          "Nf6":  "Develop and attack e4.",
-          "a6":   "The Najdorf move! Prevent Nb5 and prepare b5.",
-          "e6":   "Solid — open the diagonal for your dark bishop.",
-          "Be7":  "Develop and prepare to castle kingside.",
-          "Qc7":  "Centralize the queen and prepare counterplay.",
-        },
-      },
+    id:"ruy-lopez", title:"Ruy Lopez (Spanish)", badge:"Advanced",
+    description:"3.Bb5 — the most classical opening in chess.",
+    duration:"6h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"morphy", title:"Morphy Defense — Main Line", playerColor:"black",
+        explanation:"a6 kicks the bishop — the most popular response.",
+        moves:["e4","e5","Nf3","Nc6","Bb5","a6","Ba4","Nf6","O-O","Be7","Re1","b5","Bb3","O-O","c3","d6","h3","Na5","Bc2","c5"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","a6":"Kick the bishop!","Nf6":"Develop.","Be7":"Develop.","b5":"Gain space.","O-O":"Castle.","d6":"Solid.","Na5":"Attack the bishop.","c5":"Queenside counterplay."}},
+      { id:"berlin", title:"Berlin Defense", playerColor:"black",
+        explanation:"The Berlin Wall — ultra-solid, used by Kramnik to beat Kasparov.",
+        moves:["e4","e5","Nf3","Nc6","Bb5","Nf6","O-O","Nxe4","d4","Nd6","Bxc6","dxc6","dxe5","Nf5","Qxd8+","Kxd8","Nc3","Bd7"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","Nf6":"The Berlin!","Nxe4":"Take the pawn.","Nd6":"Retreat.","dxc6":"Recapture.","Nf5":"Good square.","Qxd8+":"Trade queens.","Kxd8":"King recaptures.","Bd7":"Develop."}},
+      { id:"marshall", title:"Marshall Attack", playerColor:"black",
+        explanation:"Black sacrifices a pawn for a massive attack!",
+        moves:["e4","e5","Nf3","Nc6","Bb5","a6","Ba4","Nf6","O-O","Be7","Re1","b5","Bb3","O-O","c3","d5","exd5","Nxd5","Nxe5","Nxe5","Rxe5","Nf6","d4","Bd6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","a6":"Kick bishop.","Nf6":"Develop.","Be7":"Develop.","b5":"Space.","O-O":"Castle.","d5":"The Marshall sacrifice!","Nxd5":"Recapture.","Nxe5":"Take.","Nf6":"Develop.","Bd6":"The attack!"}},
+      { id:"schliemann", title:"Schliemann Defense", playerColor:"black",
+        explanation:"3...f5 — immediate aggressive counterplay!",
+        moves:["e4","e5","Nf3","Nc6","Bb5","f5","Nc3","fxe4","Nxe4","d5","Nxe5","dxe4","Nxc6","Qg5","Qe2","Nf6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","f5":"Schliemann!","fxe4":"Take.","d5":"Counter.","dxe4":"Take.","Qg5":"Threat.","Nf6":"Develop."}},
     ],
   },
   {
-    id: "queens-gambit",
-    title: "Queen's Gambit",
-    badge: "Intermediate",
-    description: "1.d4 d5 2.c4 — White offers a pawn to gain central control.",
-    duration: "3h 00m",
-    free: false,
-    lines: [
-      {
-        id: "qgd",
-        title: "Main line — Queen's Gambit Declined",
-        playerColor: "black",
-        explanation: "You play Black, declining the gambit with 2...e6. Solid and strategic.",
-        moves: ["d4","d5","c4","e6","Nc3","Nf6","Bg5","Be7","e3","O-O","Nf3","Nbd7","Rc1","c6","Bd3","dxc4","Bxc4","Nd5"],
-        moveExplanations: {
-          "d5":   "Claim the center immediately.",
-          "e6":   "Decline the gambit — solid and principled.",
-          "Nf6":  "Develop the knight to its best square.",
-          "Be7":  "Develop and prepare to castle.",
-          "O-O":  "Castle to safety.",
-          "Nbd7": "Develop the queenside knight — it will go to f8 or b6.",
-          "c6":   "Strengthen the center and prepare to challenge with dxc4.",
-          "dxc4": "Release the tension — now you'll fight for the c4 pawn.",
-          "Nd5":  "Centralize the knight with gain of tempo.",
-        },
-      },
+    id:"sicilian", title:"Sicilian Defense", badge:"Intermediate",
+    description:"The most popular reply to 1.e4 — sharp, asymmetric.",
+    duration:"5h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"najdorf", title:"Najdorf Variation", playerColor:"black",
+        explanation:"Fischer and Kasparov's favourite — the sharpest Sicilian.",
+        moves:["e4","c5","Nf3","d6","d4","cxd4","Nxd4","Nf6","Nc3","a6","Bg5","e6","f4","Be7","Qf3","Qc7"],
+        moveExplanations:{"c5":"Sicilian.","d6":"Prepare Nf6.","cxd4":"Open c-file.","Nf6":"Develop.","a6":"The Najdorf move!","e6":"Solid.","Be7":"Develop.","Qc7":"Centralize."}},
+      { id:"dragon", title:"Dragon Variation", playerColor:"black",
+        explanation:"Black fianchettoes for maximum counterplay.",
+        moves:["e4","c5","Nf3","d6","d4","cxd4","Nxd4","Nf6","Nc3","g6","Be3","Bg7","f3","O-O","Qd2","Nc6","O-O-O","d5"],
+        moveExplanations:{"c5":"Sicilian.","d6":"Flexible.","cxd4":"Open.","Nf6":"Develop.","g6":"Dragon setup!","Bg7":"The Dragon bishop.","O-O":"Castle.","Nc6":"Develop.","d5":"Counterattack!"}},
+      { id:"scheveningen", title:"Scheveningen Variation", playerColor:"black",
+        explanation:"e6 keeps the center closed — solid and flexible.",
+        moves:["e4","c5","Nf3","d6","d4","cxd4","Nxd4","Nf6","Nc3","e6","Be2","Be7","O-O","O-O","f4","Nc6","Be3","a6"],
+        moveExplanations:{"c5":"Sicilian.","d6":"Flexible.","cxd4":"Open.","Nf6":"Develop.","e6":"Scheveningen!","Be7":"Develop.","O-O":"Castle.","Nc6":"Develop.","a6":"Prevent Nb5."}},
+      { id:"kan", title:"Kan / Taimanov", playerColor:"black",
+        explanation:"a6 and e6 — super flexible Sicilian.",
+        moves:["e4","c5","Nf3","e6","d4","cxd4","Nxd4","a6","Nc3","Qc7","Bd3","Nf6","O-O","Nc6","Nxc6","bxc6"],
+        moveExplanations:{"c5":"Sicilian.","e6":"Flexible.","cxd4":"Open.","a6":"The Kan!","Qc7":"Centralize.","Nf6":"Develop.","Nc6":"Develop.","bxc6":"Open b-file."}},
+      { id:"classical", title:"Classical Variation", playerColor:"black",
+        explanation:"Nc6 — classical Sicilian development.",
+        moves:["e4","c5","Nf3","Nc6","d4","cxd4","Nxd4","Nf6","Nc3","d6","Bc4","e6","Bb3","Be7","O-O","O-O","Be3","a6"],
+        moveExplanations:{"c5":"Sicilian.","Nc6":"Classical.","cxd4":"Open.","Nf6":"Develop.","d6":"Solid.","e6":"Flexible.","Be7":"Develop.","O-O":"Castle.","a6":"Prevent Nb5."}},
     ],
   },
-];
-
-const BADGE_COLORS = {
-  Beginner:     { bg: "#EAF3DE", color: "#3B6D11" },
-  Intermediate: { bg: "#FAEEDA", color: "#854F0B" },
-  Advanced:     { bg: "#FCEBEB", color: "#A32D2D" },
-};
-
-// ─── MAIN APP ────────────────────────────────────────────────────────────────
-export default function ChessApp() {
-  const [view, setView]                   = useState("home");
-  const [activeCourse, setActiveCourse]   = useState(null);
-  const [activeLine, setActiveLine]       = useState(null);
-  const [completedLines, setCompletedLines] = useState({});
-  const [showUpgrade, setShowUpgrade]     = useState(false);
-
-  const openLine = (course, line) => {
-    if (!course.free) { setShowUpgrade(true); return; }
-    setActiveCourse(course);
-    setActiveLine(line);
-    setView("trainer");
-  };
-
-  const markComplete = (courseId, lineId) => {
-    setCompletedLines(p => ({ ...p, [`${courseId}-${lineId}`]: true }));
-  };
-
-  return (
-    <div style={{ fontFamily: "'Georgia', serif", background: "#0d0d0d", minHeight: "100vh", color: "#e8e0d0" }}>
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
-
-      <nav style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 28px", borderBottom:"1px solid #222", background:"#0d0d0d", position:"sticky", top:0, zIndex:10 }}>
-        <div onClick={() => setView("home")} style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
-          <span style={{ fontSize:22 }}>♟</span>
-          <span style={{ fontSize:17, fontWeight:700, letterSpacing:"0.04em", color:"#e8e0d0" }}>ChessPath</span>
-        </div>
-        <div style={{ display:"flex", gap:28 }}>
-          {["home","courses"].map(v => (
-            <span key={v} onClick={() => setView(v)} style={{ fontSize:14, cursor:"pointer", color: view===v ? "#c9a84c" : "#888", fontFamily:"system-ui", textTransform:"capitalize" }}>{v}</span>
-          ))}
-        </div>
-        <button onClick={() => setShowUpgrade(true)} style={{ background:"#c9a84c", color:"#0d0d0d", border:"none", borderRadius:6, padding:"8px 16px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"system-ui" }}>Go Pro</button>
-      </nav>
-
-      {view === "home"    && <HomeView    courses={COURSES} onOpenLine={openLine} onUpgrade={() => setShowUpgrade(true)} />}
-      {view === "courses" && <CoursesView courses={COURSES} onOpenLine={openLine} completedLines={completedLines} />}
-      {view === "trainer" && activeCourse && activeLine && (
-        <MoveTrainer
-          course={activeCourse}
-          line={activeLine}
-          onBack={() => setView("courses")}
-          onComplete={() => { markComplete(activeCourse.id, activeLine.id); }}
-          completedLines={completedLines}
-          allLines={activeCourse.lines}
-          onSelectLine={(line) => setActiveLine(line)}
-        />
-      )}
-    </div>
-  );
-}
-
-// ─── MOVE TRAINER ────────────────────────────────────────────────────────────
-function MoveTrainer({ course, line, onBack, onComplete, completedLines, allLines, onSelectLine }) {
-  const [game, setGame]               = useState(new Chess());
-  const [moveIndex, setMoveIndex]     = useState(0);
-  const [status, setStatus]           = useState("idle"); // idle | correct | wrong | complete
-  const [wrongSquares, setWrongSquares] = useState(null);
-  const [lastCorrectFen, setLastCorrectFen] = useState(new Chess().fen());
-  const isComplete = completedLines[`${course.id}-${line.id}`];
-
-  const playerColor = line.playerColor; // "white" or "black"
-  const moves       = line.moves;
-
-  // Which move index is it the player's turn?
-  // playerColor=black means player plays odd indices (0-based: 1,3,5...)
-  // playerColor=white means player plays even indices (0,2,4...)
-  const isPlayerTurn = useCallback((idx) => {
-    if (playerColor === "black") return idx % 2 === 1;
-    return idx % 2 === 0;
-  }, [playerColor]);
-
-  // Get current expected move
-  const expectedMove = moves[moveIndex];
-
-  // Get hint text
-  const getHint = () => {
-    if (moveIndex >= moves.length) return null;
-    const exp = moves[moveIndex];
-    const expl = line.moveExplanations?.[exp];
-    // Parse move to get piece hint
-    return expl ? `Play ${exp} — ${expl}` : `Play ${exp}`;
-  };
-
-  // Auto-play computer moves
-  const playComputerMove = useCallback((currentGame, idx) => {
-    if (idx >= moves.length) return;
-    if (isPlayerTurn(idx)) return;
-
-    setTimeout(() => {
-      const move = moves[idx];
-      const g = new Chess(currentGame.fen());
-      try {
-        g.move(move);
-        setLastCorrectFen(g.fen());
-        setGame(g);
-        const nextIdx = idx + 1;
-        setMoveIndex(nextIdx);
-        if (nextIdx >= moves.length) {
-          setStatus("complete");
-          onComplete();
-        } else {
-          setStatus("idle");
-          // If next move is also computer's, keep going
-          if (!isPlayerTurn(nextIdx)) {
-            playComputerMove(g, nextIdx);
-          }
-        }
-      } catch(e) {
-        console.error("Computer move failed", move, e);
-      }
-    }, 600);
-  }, [moves, isPlayerTurn, onComplete]);
-
-  // Start — play computer's first moves if needed
-  useEffect(() => {
-    const g = new Chess();
-    setGame(g);
-    setMoveIndex(0);
-    setStatus("idle");
-    setLastCorrectFen(g.fen());
-    setWrongSquares(null);
-    // If player is black, computer plays first
-    if (!isPlayerTurn(0)) {
-      playComputerMove(g, 0);
-    }
-  }, [line]);
-
-  // Handle player dropping a piece
-  function onPieceDrop(sourceSquare, targetSquare) {
-    if (status === "complete") return false;
-    if (moveIndex >= moves.length) return false;
-    if (!isPlayerTurn(moveIndex)) return false;
-
-    // Try the move
-    const g = new Chess(game.fen());
-    let move;
-    try {
-      move = g.move({ from: sourceSquare, to: targetSquare, promotion: "q" });
-    } catch {
-      return false;
-    }
-    if (!move) return false;
-
-    // Check if it matches the expected move
-    const expected = moves[moveIndex];
-    const playedSan = move.san;
-
-    // Normalize: strip + and # for comparison
-    const normalize = s => s.replace(/[+#!?]/g, "");
-    const correct = normalize(playedSan) === normalize(expected);
-
-    if (correct) {
-      setLastCorrectFen(g.fen());
-      setGame(g);
-      setStatus("correct");
-      setWrongSquares(null);
-      const nextIdx = moveIndex + 1;
-      setMoveIndex(nextIdx);
-
-      if (nextIdx >= moves.length) {
-        setStatus("complete");
-        onComplete();
-      } else {
-        setTimeout(() => setStatus("idle"), 800);
-        // Play computer response
-        if (!isPlayerTurn(nextIdx)) {
-          playComputerMove(g, nextIdx);
-        }
-      }
-      return true;
-    } else {
-      // Wrong move — flash and snap back
-      setWrongSquares({ [sourceSquare]: { background: "rgba(220,50,50,0.5)" }, [targetSquare]: { background: "rgba(220,50,50,0.5)" } });
-      setStatus("wrong");
-      setTimeout(() => {
-        setGame(new Chess(lastCorrectFen));
-        setStatus("idle");
-        setWrongSquares(null);
-      }, 800);
-      return false;
-    }
-  }
-
-  const reset = () => {
-    const g = new Chess();
-    setGame(g);
-    setMoveIndex(0);
-    setStatus("idle");
-    setLastCorrectFen(g.fen());
-    setWrongSquares(null);
-    if (!isPlayerTurn(0)) playComputerMove(g, 0);
-  };
-
-  const progress = Math.round((moveIndex / moves.length) * 100);
-  const hint = getHint();
-
-  const customSquareStyles = wrongSquares || {};
-
-  return (
-    <div style={{ display:"grid", gridTemplateColumns:"220px 1fr", minHeight:"calc(100vh - 53px)" }}>
-      {/* Sidebar */}
-      <div style={{ background:"#080808", borderRight:"1px solid #1a1a1a", padding:"20px 0", overflowY:"auto" }}>
-        <div onClick={onBack} style={{ padding:"4px 20px 16px", fontSize:13, color:"#c9a84c", cursor:"pointer", fontFamily:"system-ui" }}>← All courses</div>
-        <div style={{ padding:"0 20px 14px", borderBottom:"1px solid #1a1a1a" }}>
-          <div style={{ fontSize:13, fontWeight:700, color:"#e8e0d0" }}>{course.title}</div>
-          <div style={{ fontSize:11, color:"#555", fontFamily:"system-ui", marginTop:3 }}>{course.lines.length} lines</div>
-        </div>
-        <div style={{ paddingTop:8 }}>
-          {course.lines.map((l) => {
-            const done = !!completedLines[`${course.id}-${l.id}`];
-            const active = l.id === line.id;
-            return (
-              <div key={l.id} onClick={() => onSelectLine(l)} style={{ padding:"10px 20px", cursor:"pointer", background: active ? "#1a1508" : "transparent", borderLeft: active ? "2px solid #c9a84c" : "2px solid transparent", display:"flex", alignItems:"center", gap:8 }}>
-                <span style={{ fontSize:13, color: done ? "#c9a84c" : "#333", flexShrink:0 }}>{done ? "✓" : "○"}</span>
-                <span style={{ fontSize:12, color: active ? "#e8e0d0" : "#666", fontFamily:"system-ui", lineHeight:1.4 }}>{l.title}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main */}
-      <div style={{ padding:"32px 36px", display:"flex", gap:40, alignItems:"flex-start", flexWrap:"wrap" }}>
-        {/* Board column */}
-        <div style={{ flexShrink:0 }}>
-          <Chessboard
-            position={game.fen()}
-            onPieceDrop={onPieceDrop}
-            boardWidth={400}
-            boardOrientation={playerColor}
-            customSquareStyles={customSquareStyles}
-            arePiecesDraggable={status !== "complete" && isPlayerTurn(moveIndex)}
-            customBoardStyle={{ borderRadius:"6px", overflow:"hidden" }}
-            customDarkSquareStyle={{ backgroundColor:"#b58863" }}
-            customLightSquareStyle={{ backgroundColor:"#f0d9b5" }}
-          />
-
-          {/* Progress bar */}
-          <div style={{ marginTop:12, height:4, background:"#1e1e1e", borderRadius:2 }}>
-            <div style={{ height:4, background:"#c9a84c", borderRadius:2, width:`${progress}%`, transition:"width 0.4s" }} />
-          </div>
-          <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
-            <span style={{ fontSize:11, color:"#555", fontFamily:"system-ui" }}>Move {moveIndex} of {moves.length}</span>
-            <span style={{ fontSize:11, color:"#555", fontFamily:"system-ui" }}>{progress}%</span>
-          </div>
-
-          <button onClick={reset} style={{ marginTop:10, width:"100%", padding:"8px", cursor:"pointer", background:"transparent", color:"#888", border:"1px solid #222", borderRadius:6, fontSize:13, fontFamily:"system-ui" }}>
-            ↺ Restart line
-          </button>
-        </div>
-
-        {/* Info column */}
-        <div style={{ flex:1, minWidth:260 }}>
-          <div style={{ fontSize:12, color:"#555", fontFamily:"system-ui", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.08em" }}>{course.title}</div>
-          <h2 style={{ fontSize:22, fontWeight:700, color:"#e8e0d0", marginBottom:12, lineHeight:1.3 }}>{line.title}</h2>
-          <p style={{ fontSize:14, color:"#777", lineHeight:1.7, marginBottom:24, fontFamily:"system-ui" }}>{line.explanation}</p>
-
-          {/* Status box */}
-          {status === "complete" ? (
-            <div style={{ padding:"20px", background:"#0d1a0d", border:"1px solid #1a3a1a", borderRadius:10, marginBottom:20 }}>
-              <div style={{ fontSize:22, marginBottom:6 }}>✓</div>
-              <div style={{ fontSize:16, fontWeight:700, color:"#4caf50", marginBottom:6, fontFamily:"system-ui" }}>Line complete!</div>
-              <div style={{ fontSize:13, color:"#4caf50aa", fontFamily:"system-ui" }}>You played all {moves.length} moves correctly. Try the next variation.</div>
-            </div>
-          ) : status === "correct" ? (
-            <div style={{ padding:"16px 20px", background:"#0d1a0d", border:"1px solid #1a3a1a", borderRadius:10, marginBottom:20 }}>
-              <div style={{ fontSize:14, color:"#4caf50", fontFamily:"system-ui", fontWeight:700 }}>✓ Correct!</div>
-              <div style={{ fontSize:13, color:"#4caf50aa", fontFamily:"system-ui", marginTop:4 }}>{line.moveExplanations?.[moves[moveIndex - 1]] || ""}</div>
-            </div>
-          ) : status === "wrong" ? (
-            <div style={{ padding:"16px 20px", background:"#1a0d0d", border:"1px solid #3a1a1a", borderRadius:10, marginBottom:20 }}>
-              <div style={{ fontSize:14, color:"#e05555", fontFamily:"system-ui", fontWeight:700 }}>✗ Not quite — try again</div>
-              <div style={{ fontSize:13, color:"#e05555aa", fontFamily:"system-ui", marginTop:4 }}>The piece has been returned. Think about the hint below.</div>
-            </div>
-          ) : (
-            <div style={{ padding:"16px 20px", background:"#111", border:"1px solid #1e1e1e", borderRadius:10, marginBottom:20 }}>
-              {isPlayerTurn(moveIndex) ? (
-                <>
-                  <div style={{ fontSize:12, color:"#555", fontFamily:"system-ui", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6 }}>Your move</div>
-                  <div style={{ fontSize:15, color:"#c9a84c", fontFamily:"system-ui", fontWeight:600 }}>{hint}</div>
-                </>
-              ) : (
-                <div style={{ fontSize:14, color:"#555", fontFamily:"system-ui" }}>Waiting for opponent...</div>
-              )}
-            </div>
-          )}
-
-          {/* Move history */}
-          <div style={{ background:"#0a0a0a", border:"1px solid #1a1a1a", borderRadius:8, padding:"14px 18px" }}>
-            <div style={{ fontSize:11, color:"#555", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:10, fontFamily:"system-ui" }}>Moves played</div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-              {moves.slice(0, moveIndex).map((m, i) => (
-                <span key={i} style={{ fontSize:13, padding:"3px 8px", borderRadius:4, background: i === moveIndex - 1 ? "#1a1508" : "#111", color: i === moveIndex - 1 ? "#c9a84c" : "#444", border: i === moveIndex - 1 ? "1px solid #c9a84c44" : "1px solid #1e1e1e", fontFamily:"system-ui" }}>{m}</span>
-              ))}
-              {moveIndex === 0 && <span style={{ fontSize:13, color:"#333", fontFamily:"system-ui" }}>No moves yet</span>}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── HOME ────────────────────────────────────────────────────────────────────
-function HomeView({ courses, onOpenLine, onUpgrade }) {
-  return (
-    <div>
-      <div style={{ padding:"72px 28px 56px", textAlign:"center", borderBottom:"1px solid #1a1a1a", background:"radial-gradient(ellipse at 50% 0%, #1a1508 0%, #0d0d0d 70%)" }}>
-        <div style={{ fontSize:52, marginBottom:8 }}>♟</div>
-        <h1 style={{ fontSize:42, fontWeight:700, color:"#e8e0d0", margin:"0 0 16px", lineHeight:1.2 }}>
-          Master chess,<br /><span style={{ color:"#c9a84c" }}>move by move</span>
-        </h1>
-        <p style={{ fontSize:17, color:"#888", maxWidth:480, margin:"0 auto 32px", lineHeight:1.7, fontFamily:"system-ui" }}>
-          Play the moves yourself. Get instant feedback. The board snaps back if you're wrong. Learn lines until they're automatic.
-        </p>
-        <div style={{ display:"flex", gap:12, justifyContent:"center" }}>
-          <button onClick={() => onOpenLine(courses[0], courses[0].lines[0])} style={{ background:"#c9a84c", color:"#0d0d0d", border:"none", borderRadius:8, padding:"13px 28px", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"system-ui" }}>
-            Try it free — Italian Game
-          </button>
-          <button onClick={onUpgrade} style={{ background:"transparent", color:"#e8e0d0", border:"1px solid #333", borderRadius:8, padding:"13px 28px", fontSize:15, cursor:"pointer", fontFamily:"system-ui" }}>
-            View pricing
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding:"40px 28px" }}>
-        <h2 style={{ fontSize:14, letterSpacing:"0.1em", color:"#888", textTransform:"uppercase", fontFamily:"system-ui", fontWeight:600, marginBottom:20 }}>Featured courses</h2>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:16 }}>
-          {courses.map(c => <CourseCard key={c.id} course={c} onOpenLine={onOpenLine} />)}
-        </div>
-      </div>
-
-      <div style={{ padding:"0 28px 56px", display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:20 }}>
-        {[
-          { icon:"♜", title:"Play the moves", desc:"You move the pieces yourself — not just watch. The board tells you if you're right or wrong instantly." },
-          { icon:"↺", title:"Instant correction", desc:"Wrong move? The piece snaps back to where it was so you can try again." },
-          { icon:"◈", title:"Multiple variations", desc:"Each opening has several lines — not just the main move, but the key variations too." },
-        ].map(f => (
-          <div key={f.title} style={{ background:"#111", border:"1px solid #1e1e1e", borderRadius:10, padding:"20px 18px" }}>
-            <div style={{ fontSize:24, marginBottom:10 }}>{f.icon}</div>
-            <div style={{ fontSize:14, fontWeight:700, color:"#e8e0d0", marginBottom:6, fontFamily:"system-ui" }}>{f.title}</div>
-            <div style={{ fontSize:13, color:"#666", lineHeight:1.6, fontFamily:"system-ui" }}>{f.desc}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── COURSES ─────────────────────────────────────────────────────────────────
-function CoursesView({ courses, onOpenLine, completedLines }) {
-  return (
-    <div style={{ padding:"36px 28px" }}>
-      <h2 style={{ fontSize:26, fontWeight:700, color:"#e8e0d0", marginBottom:6 }}>All courses</h2>
-      <p style={{ fontSize:14, color:"#666", fontFamily:"system-ui", marginBottom:28 }}>Build your repertoire from the ground up.</p>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:20 }}>
-        {courses.map(c => <CourseCard key={c.id} course={c} onOpenLine={onOpenLine} completedLines={completedLines} expanded />)}
-      </div>
-    </div>
-  );
-}
-
-function CourseCard({ course, onOpenLine, completedLines = {}, expanded = false }) {
-  const badge = BADGE_COLORS[course.badge] || BADGE_COLORS.Beginner;
-  const doneCount = course.lines.filter(l => completedLines[`${course.id}-${l.id}`]).length;
-
-  return (
-    <div style={{ background:"#111", border:"1px solid #1e1e1e", borderRadius:12, padding:"20px", overflow:"hidden" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-        <span style={{ fontSize:11, padding:"3px 9px", borderRadius:5, fontFamily:"system-ui", fontWeight:600, background:badge.bg, color:badge.color }}>{course.badge}</span>
-        {!course.free && <span style={{ fontSize:11, color:"#c9a84c", fontFamily:"system-ui" }}>⭐ Pro</span>}
-      </div>
-      <div style={{ fontSize:16, fontWeight:700, color:"#e8e0d0", marginBottom:6 }}>{course.title}</div>
-      <div style={{ fontSize:13, color:"#666", lineHeight:1.6, marginBottom:14, fontFamily:"system-ui" }}>{course.description}</div>
-
-      {doneCount > 0 && (
-        <div style={{ marginBottom:12 }}>
-          <div style={{ height:3, background:"#1e1e1e", borderRadius:2 }}>
-            <div style={{ height:3, background:"#c9a84c", borderRadius:2, width:`${Math.round((doneCount/course.lines.length)*100)}%` }} />
-          </div>
-          <div style={{ fontSize:11, color:"#555", fontFamily:"system-ui", marginTop:4 }}>{doneCount}/{course.lines.length} lines complete</div>
-        </div>
-      )}
-
-      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-        {course.lines.map(l => {
-          const done = !!completedLines?.[`${course.id}-${l.id}`];
-          return (
-            <div
-              key={l.id}
-              onClick={() => onOpenLine(course, l)}
-              style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#0a0a0a", border:"1px solid #1a1a1a", borderRadius:8, cursor:"pointer" }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = "#c9a84c"}
-              onMouseLeave={e => e.currentTarget.style.borderColor = "#1a1a1a"}
-            >
-              <span style={{ fontSize:14, color: done ? "#c9a84c" : "#333" }}>{done ? "✓" : "▶"}</span>
-              <span style={{ fontSize:13, color: done ? "#c9a84c" : "#aaa", fontFamily:"system-ui", flex:1 }}>{l.title}</span>
-              {!course.free && <span style={{ fontSize:11, color:"#555", fontFamily:"system-ui" }}>Pro</span>}
-            </div>
-          );
-        })}
-      </div>
-
-      <div style={{ marginTop:14, fontSize:12, color:"#444", fontFamily:"system-ui" }}>⏱ {course.duration}</div>
-    </div>
-  );
-}
-
-// ─── UPGRADE MODAL ───────────────────────────────────────────────────────────
-function UpgradeModal({ onClose }) {
-  const plans = [
-    { name:"Pro", price:"$12", period:"/month", features:["All opening courses","All endgame courses","Multiple lines per opening","Progress tracking","New courses monthly"], highlight:true },
-    { name:"Team", price:"$8", period:"/user/mo", features:["Everything in Pro","Coach dashboard","Student progress reports","Custom course builder","Priority support"], highlight:false },
-  ];
-  return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-      <div style={{ background:"#111", border:"1px solid #222", borderRadius:16, padding:"36px", maxWidth:560, width:"100%" }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
-          <div>
-            <h2 style={{ fontSize:22, fontWeight:700, color:"#e8e0d0", margin:0 }}>Upgrade to Pro</h2>
-            <p style={{ fontSize:14, color:"#666", marginTop:6, fontFamily:"system-ui" }}>Unlock every course, line, and feature.</p>
-          </div>
-          <button onClick={onClose} style={{ background:"transparent", border:"none", color:"#555", fontSize:22, cursor:"pointer" }}>×</button>
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:24 }}>
-          {plans.map(p => (
-            <div key={p.name} style={{ border:`1px solid ${p.highlight ? "#c9a84c" : "#222"}`, borderRadius:12, padding:"20px 18px" }}>
-              {p.highlight && <div style={{ fontSize:11, background:"#c9a84c22", color:"#c9a84c", padding:"3px 8px", borderRadius:4, display:"inline-block", marginBottom:10, fontFamily:"system-ui", fontWeight:600 }}>Most popular</div>}
-              <div style={{ fontSize:16, fontWeight:700, color:"#e8e0d0", marginBottom:4 }}>{p.name}</div>
-              <div style={{ display:"flex", alignItems:"baseline", gap:2, marginBottom:14 }}>
-                <span style={{ fontSize:26, fontWeight:700, color: p.highlight ? "#c9a84c" : "#e8e0d0" }}>{p.price}</span>
-                <span style={{ fontSize:13, color:"#555", fontFamily:"system-ui" }}>{p.period}</span>
-              </div>
-              {p.features.map(f => (
-                <div key={f} style={{ fontSize:13, color:"#888", fontFamily:"system-ui", marginBottom:6, display:"flex", gap:7 }}>
-                  <span style={{ color:"#c9a84c" }}>✓</span> {f}
-                </div>
-              ))}
-              <button style={{ width:"100%", marginTop:16, background: p.highlight ? "#c9a84c" : "transparent", color: p.highlight ? "#0d0d0d" : "#e8e0d0", border: p.highlight ? "none" : "1px solid #333", borderRadius:7, padding:"10px", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"system-ui" }}>
-                {p.highlight ? "Start 7-day free trial" : "Contact us"}
-              </button>
-            </div>
-          ))}
-        </div>
-        <p style={{ fontSize:12, color:"#444", textAlign:"center", fontFamily:"system-ui" }}>Cancel anytime. No credit card required for trial.</p>
-      </div>
-    </div>
-  );
-}
+  {
+    id:"queens-gambit", title:"Queen's Gambit", badge:"Intermediate",
+    description:"1.d4 d5 2.c4 — the most classical 1.d4 opening.",
+    duration:"4h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"qgd", title:"Queen's Gambit Declined", playerColor:"black",
+        explanation:"Solid and classical — decline with 2...e6.",
+        moves:["d4","d5","c4","e6","Nc3","Nf6","Bg5","Be7","e3","O-O","Nf3","Nbd7","Rc1","c6","Bd3","dxc4","Bxc4","Nd5"],
+        moveExplanations:{"d5":"Center.","e6":"Decline the gambit.","Nf6":"Develop.","Be7":"Develop.","O-O":"Castle.","Nbd7":"Queenside knight.","c6":"Strengthen center.","dxc4":"Release tension.","Nd5":"Centralize."}},
+      { id:"qga", title:"Queen's Gambit Accepted", playerColor:"black",
+        explanation:"Accept with dxc4 and fight to keep the pawn.",
+        moves:["d4","d5","c4","dxc4","Nf3","Nf6","e3","e6","Bxc4","c5","O-O","a6","Bb3","Nc6","Nc3","cxd4","exd4","Be7"],
+        moveExplanations:{"d5":"Center.","dxc4":"Accept!","Nf6":"Develop.","e6":"Solid.","c5":"Counter immediately.","a6":"Prevent Bb5.","Nc6":"Develop.","cxd4":"Trade.","Be7":"Develop."}},
+      { id:"slav", title:"Slav Defense", playerColor:"black",
+        explanation:"c6 supports d5 without blocking the c8 bishop.",
+        moves:["d4","d5","c4","c6","Nf3","Nf6","Nc3","dxc4","a4","Bf5","e3","e6","Bxc4","Bb4","O-O","O-O"],
+        moveExplanations:{"d5":"Center.","c6":"The Slav!","Nf6":"Develop.","dxc4":"Take.","Bf5":"Develop outside.","e6":"Solid.","Bb4":"Pin.","O-O":"Castle."}},
+      { id:"semi-slav", title:"Semi-Slav Defense", playerColor:"black",
+        explanation:"e6 and c6 — the most theoretically rich QGD system.",
+        moves:["d4","d5","c4","c6","Nf3","Nf6","Nc3","e6","e3","Nbd7","Bd3","dxc4","Bxc4","b5","Bd3","Bb7"],
+        moveExplanations:{"d5":"Center.","c6":"Slav.","Nf6":"Develop.","e6":"Semi-Slav!","Nbd7":"Develop.","dxc4":"Take.","b5":"Hold!","Bb7":"Develop."}},
+      { id:"catalan", title:"Catalan Opening", playerColor:"black",
+        explanation:"White fianchettoes — Black must neutralize the bishop.",
+        moves:["d4","d5","c4","e6","Nf3","Nf6","g3","dxc4","Bg2","Bb4+","Bd2","a5","O-O","Nc6","Nc3","O-O"],
+        moveExplanations:{"d5":"Center.","e6":"Solid.","Nf6":"Develop.","dxc4":"Accept Catalan pawn.","Bb4+":"Check.","a5":"Hold.","Nc6":"Develop.","O-O":"Castle."}},
+    ],
+  },
+  {
+    id:"scandinavian", title:"Scandinavian Defense", badge:"Beginner",
+    description:"1...d5 — Black immediately counterattacks.",
+    duration:"2h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"main", title:"Main Line — 3...Qa5", playerColor:"black",
+        explanation:"The most popular Scandinavian — queen retreats to a5.",
+        moves:["e4","d5","exd5","Qxd5","Nc3","Qa5","d4","Nf6","Nf3","Bf5","Bd2","e6","Nd5","Qd8","Nxf6+","Qxf6"],
+        moveExplanations:{"d5":"Immediate challenge!","Qxd5":"Recapture.","Qa5":"Main line retreat.","Nf6":"Develop.","Bf5":"Develop actively.","e6":"Solid.","Qd8":"Retreat.","Qxf6":"Recapture."}},
+      { id:"qd6", title:"Modern Line — 3...Qd6", playerColor:"black",
+        explanation:"The modern approach — queen to d6.",
+        moves:["e4","d5","exd5","Qxd5","Nc3","Qd6","d4","Nf6","Nf3","a6","Ne4","Qd8","Nxf6+","exf6","Bc4","Bd6"],
+        moveExplanations:{"d5":"Strike!","Qxd5":"Recapture.","Qd6":"Modern move.","Nf6":"Develop.","a6":"Prevent Nb5.","Qd8":"Retreat.","exf6":"Recapture.","Bd6":"Develop."}},
+      { id:"icelandic", title:"Icelandic Gambit", playerColor:"black",
+        explanation:"Sacrifice a pawn for rapid piece activity!",
+        moves:["e4","d5","exd5","Nf6","c4","e6","dxe6","Bxe6","Nf3","Nc6","Be2","Bc5","O-O","O-O","Nc3","Re8"],
+        moveExplanations:{"d5":"Attack!","Nf6":"Develop.","e6":"Icelandic Gambit!","Bxe6":"Recapture.","Nc6":"Develop.","Bc5":"Active.","O-O":"Castle.","Re8":"Activate."}},
+    ],
+  },
+  {
+    id:"caro-kann", title:"Caro-Kann Defense", badge:"Intermediate",
+    description:"1...c6 — solid and resilient, Karpov's weapon.",
+    duration:"3h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"classical", title:"Classical Variation", playerColor:"black",
+        explanation:"The most classical Caro-Kann — solid and safe.",
+        moves:["e4","c6","d4","d5","Nc3","dxe4","Nxe4","Bf5","Ng3","Bg6","h4","h6","Nf3","Nd7","h5","Bh7","Bd3","Bxd3","Qxd3","e6"],
+        moveExplanations:{"c6":"Caro-Kann.","d5":"Challenge.","dxe4":"Capture.","Bf5":"Develop outside the chain.","Bg6":"Safe.","h6":"Prevent Bh6.","Nd7":"Develop.","Bh7":"Retreat.","Bxd3":"Trade.","e6":"Solid."}},
+      { id:"advance", title:"Advance Variation", playerColor:"black",
+        explanation:"White plays e5 — undermine the center with c5.",
+        moves:["e4","c6","d4","d5","e5","Bf5","Nf3","e6","Be2","Nd7","O-O","Ne7","Nbd2","h6","Nb3","a5","a4","Nc8"],
+        moveExplanations:{"c6":"Caro-Kann.","d5":"Center.","Bf5":"Develop outside.","e6":"Solid.","Nd7":"Develop.","Ne7":"Flexible.","h6":"Prevent Bh6.","a5":"Counterplay.","Nc8":"Regroup."}},
+      { id:"exchange", title:"Exchange Variation", playerColor:"black",
+        explanation:"White exchanges on d5 — symmetrical position.",
+        moves:["e4","c6","d4","d5","exd5","cxd5","Bd3","Nc6","c3","Nf6","Bf4","Bg4","Qb3","Qd7","Nd2","e6"],
+        moveExplanations:{"c6":"Caro-Kann.","d5":"Center.","cxd5":"Recapture.","Nc6":"Develop.","Nf6":"Develop.","Bg4":"Pin.","Qd7":"Develop.","e6":"Solid."}},
+    ],
+  },
+  {
+    id:"french", title:"French Defense", badge:"Intermediate",
+    description:"1...e6 — solid, strategic, rich in counterplay.",
+    duration:"4h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"winawer", title:"Winawer Variation", playerColor:"black",
+        explanation:"Bb4 pins the knight — sharp and double-edged.",
+        moves:["e4","e6","d4","d5","Nc3","Bb4","e5","c5","a3","Bxc3+","bxc3","Ne7","Qg4","Qc7","Qxg7","Rg8","Qxh7","cxd4","Ne2","Nbc6"],
+        moveExplanations:{"e6":"French Defense.","d5":"Challenge center.","Bb4":"Winawer pin!","c5":"Attack the center.","Bxc3+":"Trade and wreck pawns.","Ne7":"Flexible.","Qc7":"Defend and attack.","Rg8":"Save the rook.","cxd4":"Open.","Nbc6":"Develop."}},
+      { id:"tarrasch", title:"Tarrasch Variation", playerColor:"black",
+        explanation:"Nd2 avoids the pin — Black gets c5 counterplay.",
+        moves:["e4","e6","d4","d5","Nd2","c5","exd5","exd5","Ngf3","Nc6","Bb5","Bd6","dxc5","Bxc5","O-O","Nge7"],
+        moveExplanations:{"e6":"French.","d5":"Center.","c5":"Attack.","exd5":"Open.","Nc6":"Develop.","Bd6":"Develop.","Bxc5":"Recapture.","Nge7":"Flexible."}},
+      { id:"advance", title:"Advance Variation", playerColor:"black",
+        explanation:"e5 grabs space — c5 is the key counter.",
+        moves:["e4","e6","d4","d5","e5","c5","c3","Nc6","Nf3","Qb6","a3","Nh6","b4","cxd4","cxd4","Nf5"],
+        moveExplanations:{"e6":"French.","d5":"Center.","c5":"Counter!","Nc6":"Develop.","Qb6":"Attack b2 and d4.","Nh6":"To f5.","cxd4":"Open.","Nf5":"Strong outpost."}},
+    ],
+  },
+  {
+    id:"kings-indian", title:"King's Indian Defense", badge:"Advanced",
+    description:"g6 and Bg7 — one of the most aggressive defenses vs 1.d4.",
+    duration:"5h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"classical", title:"Classical Variation", playerColor:"black",
+        explanation:"The main line — prepare the e5 break.",
+        moves:["d4","Nf6","c4","g6","Nc3","Bg7","e4","d6","Nf3","O-O","Be2","e5","O-O","Nc6","d5","Ne7","Ne1","Nd7","Nd3","f5"],
+        moveExplanations:{"Nf6":"Develop.","g6":"KID setup.","Bg7":"Fianchetto.","d6":"Support e5.","O-O":"Castle.","e5":"The key KID break!","Nc6":"Develop.","Ne7":"Regroup.","Nd7":"Prepare attack.","f5":"Attack!"}},
+      { id:"samisch", title:"Sämisch Variation", playerColor:"black",
+        explanation:"White plays f3 — counterattack urgently.",
+        moves:["d4","Nf6","c4","g6","Nc3","Bg7","e4","d6","f3","O-O","Be3","c5","dxc5","dxc5","Qxd8","Rxd8","Bxc5","Nc6","Na4","Nd4"],
+        moveExplanations:{"Nf6":"Develop.","g6":"KID.","Bg7":"Fianchetto.","d6":"Solid.","O-O":"Castle.","c5":"Counter!","dxc5":"Trade.","Rxd8":"Rook.","Nc6":"Develop.","Nd4":"Strong outpost."}},
+    ],
+  },
+  {
+    id:"nimzo-indian", title:"Nimzo-Indian Defense", badge:"Advanced",
+    description:"Bb4 — pin the knight and prevent e4.",
+    duration:"4h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"classical", title:"Classical — 4.Qc2", playerColor:"black",
+        explanation:"White avoids doubled pawns — Black fights for equality.",
+        moves:["d4","Nf6","c4","e6","Nc3","Bb4","Qc2","O-O","a3","Bxc3+","Qxc3","b6","Bg5","Bb7","e3","d6","Nf3","Nbd7"],
+        moveExplanations:{"Nf6":"Develop.","e6":"Solid.","Bb4":"Nimzo-Indian pin!","O-O":"Castle.","Bxc3+":"Trade.","b6":"Prepare Bb7.","Bb7":"Strong diagonal.","d6":"Solid.","Nbd7":"Develop."}},
+      { id:"rubinstein", title:"Rubinstein — 4.e3", playerColor:"black",
+        explanation:"Solid from White — Black gets easy equality.",
+        moves:["d4","Nf6","c4","e6","Nc3","Bb4","e3","O-O","Bd3","d5","Nf3","c5","O-O","Nc6","a3","Bxc3","bxc3","dxc4","Bxc4","Qc7"],
+        moveExplanations:{"Nf6":"Develop.","e6":"Solid.","Bb4":"Nimzo.","O-O":"Castle.","d5":"Center.","c5":"Counter.","Nc6":"Develop.","Bxc3":"Trade.","dxc4":"Take.","Qc7":"Centralize."}},
+    ],
+  },
+  {
+    id:"english", title:"English Opening", badge:"Advanced",
+    description:"1.c4 — flank opening, hypermodern and flexible.",
+    duration:"3h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"symmetrical", title:"Symmetrical English", playerColor:"black",
+        explanation:"Black mirrors with c5 — rich positional play.",
+        moves:["c4","c5","Nf3","Nf6","Nc3","Nc6","g3","g6","Bg2","Bg7","O-O","O-O","d4","cxd4","Nxd4","Nxd4","Qxd4","d6"],
+        moveExplanations:{"c5":"Mirror!","Nf6":"Develop.","Nc6":"Develop.","g6":"Fianchetto.","Bg7":"The bishop.","O-O":"Castle.","cxd4":"Open.","Nxd4":"Recapture.","d6":"Solid."}},
+      { id:"reversed-sicilian", title:"Reversed Sicilian", playerColor:"black",
+        explanation:"Black plays Sicilian-style with extra tempo.",
+        moves:["c4","e5","Nc3","Nf6","g3","d5","cxd5","Nxd5","Bg2","Nb6","Nf3","Nc6","O-O","Be7","d3","O-O"],
+        moveExplanations:{"e5":"Reversed Sicilian.","Nf6":"Develop.","d5":"Counter.","Nxd5":"Recapture.","Nb6":"Regroup.","Nc6":"Develop.","Be7":"Develop.","O-O":"Castle."}},
+    ],
+  },
+  {
+    id:"kings-gambit", title:"King's Gambit", badge:"Beginner",
+    description:"2.f4 — sacrifice a pawn for rapid development and attack.",
+    duration:"2h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"accepted", title:"King's Gambit Accepted", playerColor:"black",
+        explanation:"Accept the pawn and try to hold it!",
+        moves:["e4","e5","f4","exf4","Nf3","d6","Bc4","h6","O-O","Nf6","d4","Be7","Nc3","O-O","Bxf4","Nbd7"],
+        moveExplanations:{"e5":"Center.","exf4":"Accept!","d6":"Solid.","h6":"Prevent Ng5.","Nf6":"Develop.","Be7":"Develop.","O-O":"Castle.","Nbd7":"Develop."}},
+      { id:"declined", title:"King's Gambit Declined", playerColor:"black",
+        explanation:"Refuse the pawn and play solidly.",
+        moves:["e4","e5","f4","Bc5","Nf3","d6","c3","Nf6","d4","exd4","cxd4","Bb6","Nc3","O-O","Be2","Re8"],
+        moveExplanations:{"e5":"Center.","Bc5":"Decline actively.","d6":"Solid.","Nf6":"Develop.","exd4":"Open.","Bb6":"Reposition.","O-O":"Castle.","Re8":"Activate."}},
+      { id:"falkbeer", title:"Falkbeer Countergambit", playerColor:"black",
+        explanation:"Black sacrifices a pawn right back!",
+        moves:["e4","e5","f4","d5","exd5","e4","d3","Nf6","dxe4","Nxe4","Nf3","Bc5","Qe2","Bf5","Nc3","Qe7"],
+        moveExplanations:{"e5":"Center.","d5":"Falkbeer!","e4":"Push the pawn.","Nf6":"Develop.","Nxe4":"Recapture.","Bc5":"Develop.","Bf5":"Develop.","Qe7":"Centralize."}},
+      { id:"kieseritzky", title:"Kieseritzky Gambit", playerColor:"black",
+        explanation:"White plays h4 — the Kieseritzky.",
+        moves:["e4","e5","f4","exf4","Nf3","g5","h4","g4","Ne5","Nf6","d4","d6","Nd3","Nxe4","Bxf4","Bg7","c3","Nc6"],
+        moveExplanations:{"e5":"Center.","exf4":"Accept.","g5":"Hold.","g4":"Push.","Nf6":"Develop.","d6":"Kick.","Nxe4":"Take.","Bg7":"Develop.","Nc6":"Develop."}},
+    ],
+  },
+  {
+    id:"scotch", title:"Scotch Game", badge:"Intermediate",
+    description:"3.d4 — open the center immediately. Kasparov's weapon.",
+    duration:"2h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"classical", title:"Classical Scotch", playerColor:"black",
+        explanation:"Black plays Bc5 — classical and active.",
+        moves:["e4","e5","Nf3","Nc6","d4","exd4","Nxd4","Bc5","Be3","Qf6","c3","Nge7","Bc4","O-O","O-O","Bb6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","exd4":"Open.","Bc5":"Classical.","Qf6":"Attack d4.","Nge7":"Flexible.","O-O":"Castle.","Bb6":"Reposition."}},
+      { id:"scotch-four-knights", title:"Scotch Four Knights", playerColor:"black",
+        explanation:"Nf6 — developing and active.",
+        moves:["e4","e5","Nf3","Nc6","d4","exd4","Nxd4","Nf6","Nxc6","bxc6","e5","Qe7","Qe2","Nd5","c4","Nb6","Nc3","Qe6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","exd4":"Open.","Nf6":"Develop.","bxc6":"Recapture.","Qe7":"Defend.","Nd5":"Central.","Nb6":"Regroup.","Qe6":"Centralize."}},
+    ],
+  },
+  {
+    id:"pirc", title:"Pirc Defense", badge:"Intermediate",
+    description:"1...d6 — hypermodern, let White build then attack.",
+    duration:"2h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"austrian", title:"Austrian Attack", playerColor:"black",
+        explanation:"White plays f4 — counterattack immediately.",
+        moves:["e4","d6","d4","Nf6","Nc3","g6","f4","Bg7","Nf3","O-O","Bd3","Na6","O-O","c5","d5","Rb8"],
+        moveExplanations:{"d6":"Pirc.","Nf6":"Develop.","g6":"Fianchetto.","Bg7":"The bishop.","O-O":"Castle.","Na6":"To c5.","c5":"Counter.","Rb8":"Queenside play."}},
+    ],
+  },
+  {
+    id:"grunfeld", title:"Grünfeld Defense", badge:"Advanced",
+    description:"Nf6, g6, d5 — hypermodern. Attack the center with pieces.",
+    duration:"4h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"exchange", title:"Exchange Variation", playerColor:"black",
+        explanation:"The sharpest — White takes d5, Black attacks the center.",
+        moves:["d4","Nf6","c4","g6","Nc3","d5","cxd5","Nxd5","e4","Nxc3","bxc3","Bg7","Nf3","c5","Rb1","O-O","Be2","cxd4","cxd4","Qa5+"],
+        moveExplanations:{"Nf6":"Develop.","g6":"Fianchetto.","d5":"Grünfeld!","Nxd5":"Recapture.","Nxc3":"Trade.","Bg7":"Powerful bishop.","c5":"Attack.","O-O":"Castle.","cxd4":"Open.","Qa5+":"Check!"}},
+    ],
+  },
+  {
+    id:"dutch", title:"Dutch Defense", badge:"Intermediate",
+    description:"1...f5 — imbalanced and aggressive vs 1.d4.",
+    duration:"2h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"stonewall", title:"Stonewall Dutch", playerColor:"black",
+        explanation:"Build a fortress with e6, d5, f5.",
+        moves:["d4","f5","c4","Nf6","Nc3","e6","Nf3","d5","e3","c6","Bd3","Bd6","O-O","O-O","b3","Qe7"],
+        moveExplanations:{"f5":"Dutch!","Nf6":"Develop.","e6":"Stonewall.","d5":"Stonewall!","c6":"Solid.","Bd6":"Strong diagonal.","O-O":"Castle.","Qe7":"Prepare e5."}},
+      { id:"leningrad", title:"Leningrad Dutch", playerColor:"black",
+        explanation:"g6 and Bg7 — aggressive fianchetto Dutch.",
+        moves:["d4","f5","c4","Nf6","Nc3","g6","Nf3","Bg7","g3","O-O","Bg2","d6","O-O","c6","d5","e5"],
+        moveExplanations:{"f5":"Dutch.","Nf6":"Develop.","g6":"Leningrad!","Bg7":"Fianchetto.","O-O":"Castle.","d6":"Solid.","c6":"Prepare.","e5":"Counterattack!"}},
+    ],
+  },
+  {
+    id:"benoni", title:"Benoni Defense", badge:"Advanced",
+    description:"c5 against d4 — sharp, dynamic, double-edged.",
+    duration:"3h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"modern", title:"Modern Benoni", playerColor:"black",
+        explanation:"The most aggressive Benoni — active piece play.",
+        moves:["d4","Nf6","c4","c5","d5","e6","Nc3","exd5","cxd5","d6","e4","g6","Nf3","Bg7","Be2","O-O","O-O","Re8"],
+        moveExplanations:{"Nf6":"Develop.","c5":"Benoni!","e6":"Open.","exd5":"Recapture.","d6":"Solid.","g6":"Fianchetto.","Bg7":"The bishop.","O-O":"Castle.","Re8":"Activate."}},
+    ],
+  },
+  {
+    id:"london", title:"London System", badge:"Beginner",
+    description:"Bf4, Nf3, e3 — solid and easy to play for White.",
+    duration:"2h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"You play White. Build the London and attack the kingside.",
+        moves:["d4","d5","Nf3","Nf6","Bf4","e6","e3","c5","c3","Nc6","Nbd2","Bd6","Bg3","O-O","Bd3","Re8","Qe2","e5"],
+        moveExplanations:{"d4":"Center.","Nf3":"Develop.","Bf4":"London bishop!","e3":"Solid.","c3":"Support.","Nbd2":"Develop.","Bg3":"Reposition.","Bd3":"Develop.","Qe2":"Prepare e4.","e5":"Counterplay."}},
+    ],
+  },
+  {
+    id:"reti", title:"Réti Opening", badge:"Advanced",
+    description:"1.Nf3 — hypermodern control from afar.",
+    duration:"2h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Black can play classically or hypermodern.",
+        moves:["Nf3","d5","c4","d4","g3","Nc6","Bg2","e5","d3","Nf6","O-O","Be7","e3","O-O","exd4","exd4"],
+        moveExplanations:{"d5":"Classical center.","d4":"Advance.","Nc6":"Develop.","e5":"Space.","Nf6":"Develop.","Be7":"Develop.","O-O":"Castle.","exd4":"Open."}},
+    ],
+  },
+  {
+    id:"vienna", title:"Vienna Game", badge:"Beginner",
+    description:"2.Nc3 — flexible and aggressive, avoids the Berlin.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"gambit", title:"Vienna Gambit", playerColor:"black",
+        explanation:"White plays f4 — aggressive! Know the defense.",
+        moves:["e4","e5","Nc3","Nf6","f4","d5","fxe5","Nxe4","Nf3","Bg4","Qe2","Nxc3","dxc3","Bxf3","Qxf3","Nc6","Bf4","Qh4+","g3","Qe4+"],
+        moveExplanations:{"e5":"Center.","Nf6":"Develop.","d5":"Counter!","Nxe4":"Take.","Bg4":"Pin.","Nxc3":"Take.","Bxf3":"Trade.","Nc6":"Develop.","Qh4+":"Check!","Qe4+":"Check again!"}},
+    ],
+  },
+  {
+    id:"petrov", title:"Petrov Defense", badge:"Intermediate",
+    description:"2...Nf6 — the drawing weapon. Ultra-solid.",
+    duration:"2h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"classical", title:"Classical Variation", playerColor:"black",
+        explanation:"Solid and symmetrical — very hard to lose.",
+        moves:["e4","e5","Nf3","Nf6","Nxe5","d6","Nf3","Nxe4","d4","d5","Bd3","Nc6","O-O","Be7","Re1","O-O","Nc3","Bf5"],
+        moveExplanations:{"e5":"Center.","Nf6":"Mirror — Petrov!","d6":"Kick the knight.","Nxe4":"Take back.","d5":"Solid.","Nc6":"Develop.","Be7":"Develop.","O-O":"Castle.","Bf5":"Develop."}},
+    ],
+  },
+  {
+    id:"alekhine", title:"Alekhine's Defense", badge:"Intermediate",
+    description:"1...Nf6 — provoke White to overextend.",
+    duration:"2h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"four-pawns", title:"Four Pawns Attack", playerColor:"black",
+        explanation:"White builds a massive center — attack it.",
+        moves:["e4","Nf6","e5","Nd5","d4","d6","c4","Nb6","f4","dxe5","fxe5","Nc6","Nf3","Bg4","Be2","e6"],
+        moveExplanations:{"Nf6":"Alekhine's Defense!","Nd5":"Retreat but gain time.","d6":"Attack e5.","Nb6":"Retreat.","dxe5":"Open.","Nc6":"Develop.","Bg4":"Pin.","e6":"Solid."}},
+    ],
+  },
+  {
+    id:"modern", title:"Modern Defense", badge:"Intermediate",
+    description:"1...g6 — hypermodern, delay and attack later.",
+    duration:"2h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Fianchetto and let White build — then attack.",
+        moves:["e4","g6","d4","Bg7","Nc3","d6","Nf3","Nf6","Be2","O-O","O-O","Nc6","d5","Ne5","Nxe5","dxe5","f4","exf4","Rxf4","c6"],
+        moveExplanations:{"g6":"Modern Defense.","Bg7":"Fianchetto.","d6":"Solid.","Nf6":"Develop.","O-O":"Castle.","Nc6":"Develop.","Ne5":"Centralize.","dxe5":"Recapture.","exf4":"Take.","c6":"Counter."}},
+    ],
+  },
+  {
+    id:"budapest", title:"Budapest Gambit", badge:"Intermediate",
+    description:"1.d4 Nf6 2.c4 e5 — sacrifice for activity!",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line — Ng4", playerColor:"black",
+        explanation:"Recover the pawn and get active pieces.",
+        moves:["d4","Nf6","c4","e5","dxe5","Ng4","Nf3","Bc5","e3","Nc6","Be2","Ngxe5","Nxe5","Nxe5","O-O","O-O"],
+        moveExplanations:{"Nf6":"Develop.","e5":"Budapest Gambit!","Ng4":"Attack e5.","Bc5":"Active bishop.","Nc6":"Develop.","Ngxe5":"Recover.","Nxe5":"Trade.","O-O":"Castle."}},
+    ],
+  },
+  {
+    id:"benko-gambit", title:"Benko Gambit", badge:"Advanced",
+    description:"1.d4 Nf6 2.c4 c5 3.d5 b5 — long-term queenside pressure.",
+    duration:"2h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"accepted", title:"Benko Gambit Accepted", playerColor:"black",
+        explanation:"White takes b5 — Black gets permanent pressure.",
+        moves:["d4","Nf6","c4","c5","d5","b5","cxb5","a6","bxa6","Bxa6","Nc3","g6","Nf3","Bg7","e4","Bxf1","Kxf1","d6","g3","Nbd7"],
+        moveExplanations:{"Nf6":"Develop.","c5":"Benko.","b5":"Gambit!","a6":"Attack.","Bxa6":"Develop!","g6":"Fianchetto.","Bg7":"The bishop.","d6":"Solid.","Nbd7":"Develop."}},
+    ],
+  },
+  {
+    id:"queens-indian", title:"Queen's Indian Defense", badge:"Advanced",
+    description:"1.d4 Nf6 2.c4 e6 3.Nf3 b6 — fianchetto the queen's bishop.",
+    duration:"2h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Bb7 controls the long diagonal — very solid.",
+        moves:["d4","Nf6","c4","e6","Nf3","b6","g3","Bb7","Bg2","Be7","O-O","O-O","Nc3","Ne4","Qc2","Nxc3","Qxc3","f5"],
+        moveExplanations:{"Nf6":"Develop.","e6":"Solid.","b6":"Queen's Indian!","Bb7":"The diagonal.","Be7":"Develop.","O-O":"Castle.","Ne4":"Centralize.","Nxc3":"Trade.","f5":"Space."}},
+    ],
+  },
+  {
+    id:"nimzowitsch-defense", title:"Nimzowitsch Defense", badge:"Intermediate",
+    description:"1.e4 Nc6 — hypermodern, knight before pawns.",
+    duration:"1h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Nc6 controls d4 and e5 hypermodernly.",
+        moves:["e4","Nc6","d4","d5","e5","f6","f4","fxe5","fxe5","e6","Nf3","Nge7","Bb5","Bd7","Bxc6","Bxc6","O-O","Ng6"],
+        moveExplanations:{"Nc6":"Nimzowitsch!","d5":"Counter.","f6":"Attack e5.","fxe5":"Take.","e6":"Solid.","Nge7":"Develop.","Bd7":"Develop.","Bxc6":"Trade.","Ng6":"Active."}},
+    ],
+  },
+  {
+    id:"danish-gambit", title:"Danish Gambit", badge:"Beginner",
+    description:"2.d4 3.c3 — sacrifice two pawns for a huge attack!",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"accepted", title:"Danish Gambit Accepted", playerColor:"white",
+        explanation:"Accept and White gets a ferocious attack.",
+        moves:["e4","e5","d4","exd4","c3","dxc3","Bc4","cxb2","Bxb2","Nf6","Nc3","Bb4","Nge2","Bxc3","Bxc3","d5","exd5","Nxd5"],
+        moveExplanations:{"e4":"Center.","d4":"Open.","c3":"Gambit!","Bc4":"Active bishop.","Bxb2":"Develop.","Nc3":"Develop.","Nge2":"Flexible.","Bxc3":"Trade."}},
+    ],
+  },
+  {
+    id:"four-knights", title:"Four Knights Game", badge:"Beginner",
+    description:"Both sides develop knights first — classical.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"spanish", title:"Spanish Four Knights", playerColor:"black",
+        explanation:"Bb5 — the classical Four Knights.",
+        moves:["e4","e5","Nf3","Nc6","Nc3","Nf6","Bb5","Bb4","O-O","O-O","d3","d6","Bg5","Bxc3","bxc3","Qe7"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","Nf6":"Develop.","Bb4":"Mirror pin.","O-O":"Castle.","d6":"Solid.","Bxc3":"Trade.","Qe7":"Centralize."}},
+      { id:"halloween", title:"Halloween Gambit", playerColor:"white",
+        explanation:"White sacrifices a knight for wild complications!",
+        moves:["e4","e5","Nf3","Nc6","Nc3","Nf6","Nxe5","Nxe5","d4","Nc6","d5","Ne5","f4","Ng6","e5","Ng8"],
+        moveExplanations:{"e4":"Center.","Nf3":"Develop.","Nc3":"Develop.","Nxe5":"Halloween Gambit!","d4":"Attack.","d5":"Push.","f4":"Attack.","e5":"More space."}},
+    ],
+  },
+  {
+    id:"polish", title:"Polish Opening", badge:"Beginner",
+    description:"1.b4 — the Orangutan! Rare and surprising.",
+    duration:"1h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"b4 grabs queenside space immediately.",
+        moves:["b4","e5","Bb2","Bxb4","Bxe5","Nf6","c4","O-O","Nf3","d5","cxd5","Nxd5","e3","Bc5","Be2","Re8"],
+        moveExplanations:{"b4":"Polish Opening!","Bb2":"Develop.","Bxe5":"Take.","c4":"Expand.","Nf3":"Develop.","e3":"Solid.","Be2":"Develop."}},
+    ],
+  },
+  {
+    id:"birds", title:"Bird's Opening", badge:"Beginner",
+    description:"1.f4 — aggressive flank opening.",
+    duration:"1h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"from-gambit", title:"From's Gambit (Black)", playerColor:"black",
+        explanation:"Black sacrifices e5 for a wild attack!",
+        moves:["f4","e5","fxe5","d6","exd6","Bxd6","Nf3","Nf6","e4","Ng4","d4","Nxh2","Rxh2","Bxh2","Nc3","Bg4"],
+        moveExplanations:{"e5":"From's Gambit!","d6":"Develop.","Bxd6":"Recapture.","Nf6":"Develop.","Ng4":"Attack h2.","Nxh2":"Sacrifice!","Bxh2":"Take the rook.","Bg4":"Pin."}},
+    ],
+  },
+  {
+    id:"trompowsky", title:"Trompowsky Attack", badge:"Intermediate",
+    description:"2.Bg5 — pin the knight before Black plays d5.",
+    duration:"2h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Avoid mainstream theory with the Trompowsky.",
+        moves:["d4","Nf6","Bg5","e6","e4","h6","Bxf6","Qxf6","Nc3","d6","Qd2","g6","O-O-O","Bg7","f3","Nc6"],
+        moveExplanations:{"d4":"Center.","Bg5":"Trompowsky!","e4":"Grab space.","Bxf6":"Trade.","Nc3":"Develop.","Qd2":"Prepare.","O-O-O":"Castle queenside.","f3":"Solid."}},
+    ],
+  },
+  {
+    id:"colle", title:"Colle System", badge:"Beginner",
+    description:"d4, Nf3, e3, Bd3 — beginner-friendly solid system.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Colle-Koltanowski", playerColor:"white",
+        explanation:"Set up the Colle and launch a kingside attack.",
+        moves:["d4","d5","Nf3","Nf6","e3","e6","Bd3","c5","c3","Nc6","Nbd2","Bd6","O-O","O-O","Re1","Qe7"],
+        moveExplanations:{"d4":"Center.","Nf3":"Develop.","e3":"Solid.","Bd3":"Develop.","c3":"Support.","Nbd2":"Develop.","O-O":"Castle.","Re1":"Prepare e4."}},
+    ],
+  },
+  {
+    id:"nimzo-larsen", title:"Nimzowitsch-Larsen Attack", badge:"Intermediate",
+    description:"1.b3 — fianchetto the queen's bishop.",
+    duration:"1h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"b3 and Bb2 — control the long diagonal.",
+        moves:["b3","e5","Bb2","Nc6","e3","d5","Bb5","Bd6","Na3","Nf6","Ne2","O-O","O-O","Re8","f4","exf4"],
+        moveExplanations:{"b3":"Nimzo-Larsen!","Bb2":"The bishop.","e3":"Solid.","Bb5":"Pin.","Na3":"Develop.","Ne2":"Flexible.","O-O":"Castle.","f4":"Attack."}},
+    ],
+  },
+  {
+    id:"torre", title:"Torre Attack", badge:"Intermediate",
+    description:"2.Nf3 3.Bg5 — solid and slightly aggressive.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Build the Torre setup and attack the kingside.",
+        moves:["d4","Nf6","Nf3","e6","Bg5","d5","e3","Be7","Nbd2","O-O","Bd3","c5","c3","Nc6","O-O","Qb6"],
+        moveExplanations:{"d4":"Center.","Nf3":"Develop.","Bg5":"Torre!","e3":"Solid.","Nbd2":"Develop.","Bd3":"Develop.","c3":"Solid.","O-O":"Castle."}},
+    ],
+  },
+  {
+    id:"philidor", title:"Philidor Defense", badge:"Beginner",
+    description:"2...d6 — solid but passive. Use counterplay!",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Avoid passivity with timely counterplay.",
+        moves:["e4","e5","Nf3","d6","d4","Nf6","Nc3","Nbd7","Bc4","Be7","O-O","O-O","Re1","c6","a4","Qc7"],
+        moveExplanations:{"e5":"Center.","d6":"Philidor.","Nf6":"Develop.","Nbd7":"Develop.","Be7":"Develop.","O-O":"Castle.","c6":"Solid.","Qc7":"Counterplay."}},
+    ],
+  },
+  {
+    id:"bishop-opening", title:"Bishop's Opening", badge:"Beginner",
+    description:"2.Bc4 — develop the bishop before the knight.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"berlin", title:"Berlin Defense", playerColor:"black",
+        explanation:"Nf6 — attack e4 immediately.",
+        moves:["e4","e5","Bc4","Nf6","d3","c6","Nf3","d5","Bb3","Bb4+","c3","Bd6","O-O","O-O","Re1","Re8"],
+        moveExplanations:{"e5":"Center.","Nf6":"Attack e4.","c6":"Solid.","d5":"Counter.","Bd6":"Develop.","Bb4+":"Check.","O-O":"Castle.","Re8":"Activate."}},
+    ],
+  },
+  {
+    id:"latvian", title:"Latvian Gambit", badge:"Beginner",
+    description:"2...f5 — wild and risky counter-gambit.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Extremely risky but tricky for unprepared opponents.",
+        moves:["e4","e5","Nf3","f5","Nxe5","Qf6","d4","d6","Nc4","fxe4","Nc3","Qg6","Be2","Nf6","Bg5","Be7"],
+        moveExplanations:{"e5":"Center.","f5":"Latvian Gambit!","Qf6":"Defend e5.","d6":"Kick.","fxe4":"Take.","Qg6":"Retreat.","Nf6":"Develop.","Be7":"Develop."}},
+    ],
+  },
+  {
+    id:"elephant", title:"Elephant Gambit", badge:"Beginner",
+    description:"2...d5 — Black sacrifices for immediate counterplay.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"2...d5 — very aggressive and risky.",
+        moves:["e4","e5","Nf3","d5","exd5","Bd6","Nc3","Nf6","Bc4","O-O","O-O","Re8","Re1","e4","Ng5","Bf4"],
+        moveExplanations:{"e5":"Center.","d5":"Elephant Gambit!","Bd6":"Develop.","Nf6":"Develop.","O-O":"Castle.","Re8":"Activate.","e4":"Push!","Bf4":"Develop."}},
+    ],
+  },
+  {
+    id:"albin", title:"Albin Counter-Gambit", badge:"Intermediate",
+    description:"vs. QGD — Black sacrifices e5 for active play.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"2...e5 — surprise White with the Albin!",
+        moves:["d4","d5","c4","e5","dxe5","d4","Nf3","Nc6","g3","Bg4","Bg2","Qd7","O-O","O-O-O","Na3","Bxf3","Bxf3","Nxe5"],
+        moveExplanations:{"d5":"Center.","e5":"Albin Counter-Gambit!","d4":"Push!","Nc6":"Develop.","Bg4":"Pin.","Qd7":"Develop.","O-O-O":"Castle queenside.","Nxe5":"Recover."}},
+    ],
+  },
+  {
+    id:"bogo-indian", title:"Bogo-Indian Defense", badge:"Intermediate",
+    description:"1.d4 Nf6 2.c4 e6 3.Nf3 Bb4+ — pin without Nc3.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Bb4+ forces White to commit.",
+        moves:["d4","Nf6","c4","e6","Nf3","Bb4+","Nbd2","O-O","a3","Be7","e4","d5","e5","Nfd7","Bd3","c5"],
+        moveExplanations:{"Nf6":"Develop.","e6":"Solid.","Bb4+":"Bogo-Indian!","O-O":"Castle.","Be7":"Retreat.","d5":"Counter.","Nfd7":"Retreat.","c5":"Counter."}},
+    ],
+  },
+  {
+    id:"tarrasch-defense", title:"Tarrasch Defense", badge:"Advanced",
+    description:"c5 creates an isolated pawn but active pieces.",
+    duration:"2h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Accept the isolated pawn for active piece play.",
+        moves:["d4","d5","c4","e6","Nc3","c5","cxd5","exd5","Nf3","Nc6","g3","Nf6","Bg2","Be7","O-O","O-O","dxc5","Bxc5"],
+        moveExplanations:{"d5":"Center.","e6":"Solid.","c5":"Tarrasch!","exd5":"Open.","Nc6":"Develop.","Nf6":"Develop.","Be7":"Develop.","O-O":"Castle.","Bxc5":"Recapture."}},
+    ],
+  },
+  {
+    id:"center-game", title:"Center Game", badge:"Beginner",
+    description:"2.d4 exd4 3.Qxd4 — develop the queen early.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Black develops and gains time attacking the queen.",
+        moves:["e4","e5","d4","exd4","Qxd4","Nc6","Qe3","Nf6","Nc3","Bb4","Bd2","O-O","O-O-O","Re8","Qg3","d5"],
+        moveExplanations:{"e5":"Center.","exd4":"Take.","Nc6":"Attack the queen!","Nf6":"Develop.","Bb4":"Pin.","O-O":"Castle.","Re8":"Activate.","d5":"Counter!"}},
+    ],
+  },
+  {
+    id:"veresov", title:"Veresov Attack", badge:"Intermediate",
+    description:"1.d4 d5 2.Nc3 Nf6 3.Bg5 — aggressive system.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Pin the knight and play aggressively.",
+        moves:["d4","Nf6","Nc3","d5","Bg5","Nbd7","Qd3","c6","O-O-O","e6","e4","dxe4","Nxe4","Nxe4","Qxe4","Nf6","Qh4","h6"],
+        moveExplanations:{"d4":"Center.","Nc3":"Develop.","Bg5":"Veresov!","Qd3":"Flexible.","O-O-O":"Castle queenside.","e4":"Open.","Nxe4":"Take.","Qxe4":"Recapture."}},
+    ],
+  },
+  {
+    id:"stonewall-attack", title:"Stonewall Attack (White)", badge:"Beginner",
+    description:"d4, e3, f4, c3 — kingside attack for White.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Set up the White Stonewall and attack.",
+        moves:["d4","d5","e3","Nf6","Bd3","e6","f4","c5","c3","Nc6","Nf3","Bd6","O-O","O-O","Ne5","Qc7"],
+        moveExplanations:{"d4":"Center.","e3":"Stonewall.","Bd3":"Develop.","f4":"Stonewall!","c3":"Solid.","Nf3":"Develop.","O-O":"Castle.","Ne5":"Strong outpost."}},
+    ],
+  },
+  {
+    id:"muzio", title:"Muzio Gambit", badge:"Advanced",
+    description:"Sacrifice the knight on f3 in the King's Gambit.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Sacrifice the knight for a brutal attack!",
+        moves:["e4","e5","f4","exf4","Nf3","g5","Bc4","g4","O-O","gxf3","Qxf3","Nc6","d3","Bg7","Nc3","Ne5","Bb3","Qe7"],
+        moveExplanations:{"e4":"Center.","f4":"King's Gambit.","Bc4":"Active bishop.","O-O":"Sacrifice the knight!","Qxf3":"Develop.","d3":"Solid.","Nc3":"Develop.","Bb3":"Reposition."}},
+    ],
+  },
+  {
+    id:"philidor-defense-lion", title:"Philidor Lion's Mouth", badge:"Intermediate",
+    description:"The aggressive Philidor — attack with f5!",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Lion's Mouth", playerColor:"black",
+        explanation:"f5 — aggressive Philidor play.",
+        moves:["e4","e5","Nf3","d6","d4","f5","dxe5","fxe4","Ng5","d5","e6","Nh6","Nc3","c6","Nxe4","dxe4"],
+        moveExplanations:{"e5":"Center.","d6":"Philidor.","f5":"Aggressive!","fxe4":"Take.","d5":"Counter.","Nh6":"Develop.","c6":"Support.","dxe4":"Open."}},
+    ],
+  },
+  {
+    id:"hungarian", title:"Hungarian Defense", badge:"Beginner",
+    description:"3...Be7 — passive but solid.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Be7 — very solid but passive.",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Be7","d4","exd4","c3","dxc3","Nxc3","Nf6","O-O","O-O","Re1","d6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","Be7":"Hungarian.","exd4":"Open.","dxc3":"Take.","Nf6":"Develop.","O-O":"Castle.","d6":"Solid."}},
+    ],
+  },
+  {
+    id:"owens", title:"Owen's Defense", badge:"Beginner",
+    description:"1...b6 — fianchetto the queen's bishop vs 1.e4.",
+    duration:"1h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Rare but tricky b6 fianchetto.",
+        moves:["e4","b6","d4","Bb7","Bd3","e6","Nf3","c5","c3","Nf6","Nbd2","Be7","O-O","O-O","Re1","d6"],
+        moveExplanations:{"b6":"Owen's Defense!","Bb7":"Fianchetto.","e6":"Solid.","c5":"Counter.","Nf6":"Develop.","Be7":"Develop.","O-O":"Castle.","d6":"Solid."}},
+    ],
+  },
+  {
+    id:"ponziani", title:"Ponziani Opening", badge:"Beginner",
+    description:"3.c3 — prepare d4 early. Old and tricky.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Black counters with d5!",
+        moves:["e4","e5","Nf3","Nc6","c3","d5","Qa4","dxe4","Nxe5","Qd5","Nxc6","bxc6","Bc4","Qd7","Qxe4+","Be6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","d5":"Counter!","dxe4":"Take.","Qd5":"Centralize.","bxc6":"Recapture.","Qd7":"Develop.","Be6":"Develop."}},
+    ],
+  },
+  {
+    id:"kia", title:"King's Indian Attack", badge:"Intermediate",
+    description:"g3, Bg2, Nf3, d3 — flexible White system.",
+    duration:"2h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"vs-french", title:"vs. French Setup", playerColor:"white",
+        explanation:"KIA vs French-style Black — attack the kingside.",
+        moves:["e4","e6","d3","d5","Nd2","Nf6","Ngf3","Be7","g3","O-O","Bg2","b6","O-O","Bb7","Re1","c5","e5","Nfd7"],
+        moveExplanations:{"e4":"Center.","d3":"KIA.","Nd2":"Develop.","Ngf3":"Develop.","g3":"Fianchetto.","Bg2":"The bishop.","O-O":"Castle.","Re1":"Prepare e5.","e5":"Attack!"}},
+    ],
+  },
+  {
+    id:"grob", title:"Grob's Attack", badge:"Beginner",
+    description:"1.g4 — wild and irregular. A surprise weapon.",
+    duration:"1h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"1.g4 — unusual but effective as a surprise.",
+        moves:["g4","d5","Bg2","Bxg4","c4","c3","bxc3","Nc6","h3","Bh5","Nf3","e6","d3","Nf6","Nd4","Bg6"],
+        moveExplanations:{"g4":"Grob!","Bg2":"Develop.","c4":"Expand.","bxc3":"Recapture.","h3":"Prevent Bh4.","Nf3":"Develop.","d3":"Solid.","Nd4":"Centralize."}},
+    ],
+  },
+  {
+    id:"st-george", title:"St. George Defense", badge:"Beginner",
+    description:"1...a6 — rare and offbeat, catches White off guard.",
+    duration:"1h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"a6 and b5 — queenside expansion!",
+        moves:["e4","a6","d4","b5","Nf3","Bb7","Bd3","e6","O-O","Nf6","Re1","c5","c3","Nc6","Nbd2","d5"],
+        moveExplanations:{"a6":"St. George!","b5":"Expand!","Bb7":"Develop.","e6":"Solid.","Nf6":"Develop.","c5":"Counter.","Nc6":"Develop.","d5":"Center."}},
+    ],
+  },
+  // ── ENDGAMES ──────────────────────────────────────────────────────────────
+  {
+    id:"rook-endgames", title:"Rook Endgames", badge:"Intermediate",
+    description:"The most common endgames — Lucena and Philidor positions.",
+    duration:"3h", free:false, category:"Endgames",
+    lines:[
+      { id:"lucena", title:"Lucena Position — Win", playerColor:"white",
+        explanation:"The most important winning rook ending — build the bridge!",
+        moves:["Rd1","Re8","Kd7","Re2","Rd1+","Ke8","Re4","Rd5","Rg4","Rd8","Ke7","Re8+","Kf7","Re4"],
+        moveExplanations:{"Rd1":"Push the king.","Re8":"Active rook.","Kd7":"Escort pawn.","Re2":"Build the bridge!","Rd1+":"Check.","Ke8":"King moves.","Re4":"The bridge.","Rd5":"Rook cuts off.","Rg4":"Bridge move.","Rd8":"Attack.","Ke7":"King.","Re8+":"Check.","Kf7":"King.","Re4":"Win."}},
+      { id:"philidor", title:"Philidor Position — Draw", playerColor:"black",
+        explanation:"Keep the rook on the 6th rank to draw!",
+        moves:["Ke6","Ra6+","Kd5","Rf6","Ke5","Ra6","Kd5","Rf6"],
+        moveExplanations:{"Ke6":"Active king.","Ra6+":"Check!","Kd5":"King moves.","Rf6":"6th rank!","Ke5":"King tries.","Ra6":"Back to 6th!","Kd5":"King.","Rf6":"Hold the 6th."}},
+    ],
+  },
+  {
+    id:"pawn-endgames", title:"Pawn Endgames", badge:"Beginner",
+    description:"Opposition, key squares, and pawn promotion fundamentals.",
+    duration:"2h", free:false, category:"Endgames",
+    lines:[
+      { id:"opposition", title:"The Opposition", playerColor:"white",
+        explanation:"Seize the opposition to escort your pawn home.",
+        moves:["Kd5","Kd7","e5","Ke7","e6","Ke8","Ke4","Kd8","Kd6","Ke8","e7","Kf7","Kd7","Kf6","e8=Q"],
+        moveExplanations:{"Kd5":"Opposition!","Kd7":"Black retreats.","e5":"Advance.","Ke7":"Block.","e6":"Push.","Ke8":"Block.","Ke4":"Triangle.","Kd8":"Retreat.","Kd6":"Win opposition.","Ke8":"Block.","e7":"Almost!","Kf7":"Try to stop.","Kd7":"Cut off.","Kf6":"Desperation.","e8=Q":"Promote!"}},
+    ],
+  },
+  {
+    id:"bishop-endgames", title:"Bishop Endgames", badge:"Intermediate",
+    description:"Same-color and opposite-color bishop endings.",
+    duration:"1h", free:false, category:"Endgames",
+    lines:[
+      { id:"opposite-color", title:"Opposite Color Bishops — Draw", playerColor:"black",
+        explanation:"Opposite colored bishops are almost always drawn!",
+        moves:["Ke4","Ke6","Bf5+","Ke7","Bg6","Kf8","Ke5","Ke7","Kf5","Kf8","Be8","Kg7","Ke6","Kg8","Kf6","Kh8"],
+        moveExplanations:{"Ke4":"King active.","Ke6":"Opposition.","Bf5+":"Check.","Ke7":"King.","Bg6":"Control.","Kf8":"Draw fortress.","Ke5":"Try.","Ke7":"Draw.","Kf5":"Try.","Kf8":"Hold.","Be8":"Zugzwang try.","Kg7":"Draw.","Ke6":"Try.","Kg8":"Draw.","Kf6":"Stalemate trap!","Kh8":"Draw."}},
+    ],
+  },
+  {
+    id:"knight-endgames", title:"Knight Endgames", badge:"Intermediate",
+    description:"Knights in endgames — key positions and techniques.",
+    duration:"1h", free:false, category:"Endgames",
+    lines:[
+      { id:"knight-vs-pawn", title:"Knight vs. Passed Pawn", playerColor:"white",
+        explanation:"Can the knight stop the passed pawn?",
+        moves:["Nf5","h4","Ne3","h3","Nf1","h2","Ng3","Kg2","Nxh1","Kxh1"],
+        moveExplanations:{"Nf5":"Block.","h4":"Push.","Ne3":"Reposition.","h3":"Push.","Nf1":"Block.","h2":"Almost.","Ng3":"Last resort.","Kg2":"Help.","Nxh1":"Take.","Kxh1":"King takes."}},
+    ],
+  },
+  // ── MATING PATTERNS ───────────────────────────────────────────────────────
+  {
+    id:"mating-patterns", title:"Mating Patterns", badge:"Beginner",
+    description:"Scholar's Mate, Fool's Mate, back rank mates.",
+    duration:"2h", free:false, category:"Tactics",
+    lines:[
+      { id:"scholars", title:"Scholar's Mate", playerColor:"white",
+        explanation:"The 4-move checkmate — know it to play it and stop it!",
+        moves:["e4","e5","Bc4","Nc6","Qh5","Nf6","Qxf7"],
+        moveExplanations:{"e4":"Center.","Bc4":"Target f7.","Qh5":"Attack h5 and f7.","Qxf7":"Checkmate!"}},
+      { id:"fools", title:"Fool's Mate", playerColor:"black",
+        explanation:"The fastest checkmate — 2 moves! Know it as Black.",
+        moves:["f3","e5","g4","Qh4"],
+        moveExplanations:{"e5":"Center.","Qh4":"Checkmate in 2!"}},
+    ],
+  },
+  // ── MIDDLEGAME STRATEGIES ─────────────────────────────────────────────────
+  {
+    id:"iqp", title:"Isolated Queen's Pawn (IQP)", badge:"Advanced",
+    description:"How to play with and against the isolated d-pawn.",
+    duration:"2h", free:false, category:"Middlegame Strategies",
+    lines:[
+      { id:"attacking", title:"Playing With the IQP", playerColor:"white",
+        explanation:"The IQP gives active piece play — attack before it's weak.",
+        moves:["d4","d5","c4","e6","Nc3","Nf6","Nf3","c5","cxd5","Nxd5","e3","Nc6","Bd3","Be7","O-O","O-O","a3","Nxc3","bxc3","cxd4","cxd4","Qd6"],
+        moveExplanations:{"d4":"Center.","c4":"Open.","Nf3":"Develop.","c5":"Counter.","cxd5":"Open.","Nxd5":"Recapture.","e3":"Solid.","Nc6":"Develop.","Bd3":"Attack h7.","Be7":"Develop.","O-O":"Castle.","Nxc3":"Trade.","bxc3":"IQP!","cxd4":"Open.","Qd6":"Develop."}},
+    ],
+  },
+  {
+    id:"hedgehog", title:"Hedgehog System", badge:"Advanced",
+    description:"...e6, ...b6, ...a6 — wait and strike back.",
+    duration:"2h", free:false, category:"Middlegame Strategies",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Build the Hedgehog and wait for the right moment.",
+        moves:["c4","c5","Nf3","Nf6","Nc3","e6","g3","b6","Bg2","Bb7","O-O","Be7","d4","cxd4","Qxd4","d6","b3","a6","Bb2","Nbd7","Rfd1","Qc7"],
+        moveExplanations:{"c5":"Hedgehog.","Nf6":"Develop.","e6":"Solid.","b6":"Hedgehog!","Bb7":"The diagonal.","Be7":"Develop.","cxd4":"Open.","d6":"Solid.","a6":"Hedgehog!","Nbd7":"Develop.","Qc7":"Centralize."}},
+    ],
+  },
+  {
+    id:"minority-attack", title:"Minority Attack", badge:"Advanced",
+    description:"Use 2 pawns to undermine 3 — the classic QGD plan.",
+    duration:"1h", free:false, category:"Middlegame Strategies",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Play b4-b5 to create a weakness on c6.",
+        moves:["d4","d5","c4","e6","Nc3","Nf6","Bg5","Be7","e3","O-O","Nf3","Nbd7","Rc1","c6","Bd3","dxc4","Bxc4","Nd5","Bxe7","Qxe7","O-O","Nxc3","Rxc3","e5","b4"],
+        moveExplanations:{"d4":"Center.","c4":"QGD.","Nf3":"Develop.","Bg5":"Pin.","e3":"Solid.","Rc1":"Key rook!","Bd3":"Develop.","dxc4":"Take.","Bxc4":"Recapture.","Nd5":"Trade.","Bxe7":"Trade.","Qxe7":"Recapture.","O-O":"Castle.","Nxc3":"Trade.","Rxc3":"Rook to c3.","e5":"Counter.","b4":"Minority attack!"}},
+    ],
+  },
+  // ── MORE OPENINGS ─────────────────────────────────────────────────────────
+  {
+    id:"bishops-gambit-standalone", title:"Bishop's Gambit", badge:"Intermediate",
+    description:"2.f4 exf4 3.Bc4 — develop the bishop before recapturing.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Black defends actively.",
+        moves:["e4","e5","f4","exf4","Bc4","Nf6","Nc3","Bc5","d3","d6","Nf3","Nc6","O-O","Na5","Bb3","Nxb3","axb3","O-O"],
+        moveExplanations:{"e5":"Center.","exf4":"Accept.","Nf6":"Develop.","Bc5":"Develop.","d6":"Solid.","Nc6":"Develop.","Na5":"Attack.","Nxb3":"Trade.","O-O":"Castle."}},
+    ],
+  },
+  {
+    id:"schliemann-standalone", title:"Schliemann Gambit Deep Dive", badge:"Intermediate",
+    description:"Everything about 3...f5 against the Ruy Lopez.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"f5 — aggressive counterplay from move 3!",
+        moves:["e4","e5","Nf3","Nc6","Bb5","f5","Nc3","fxe4","Nxe4","d5","Nxe5","dxe4","Nxc6","Qg5","Qe2","Nf6"],
+        moveExplanations:{"e5":"Center.","Nc6":"Develop.","f5":"Schliemann!","fxe4":"Take.","d5":"Counter.","dxe4":"Take.","Qg5":"Threat.","Nf6":"Develop."}},
+    ],
+  },
+  {
+    id:"max-lange", title:"Max Lange Attack", badge:"Advanced",
+    description:"Aggressive play after the Italian — sacrifices for attack!",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"White sacrifices a pawn for a huge attack.",
+        moves:["e4","e5","Nf3","Nc6","Bc4","Bc5","O-O","Nf6","d4","exd4","e5","d5","exf6","dxc4","fxg7","Rg8","Re1+","Be6"],
+        moveExplanations:{"e4":"Center.","Nf3":"Develop.","Bc4":"Italian.","O-O":"Castle.","d4":"Open.","e5":"Attack.","d5":"Counter.","exf6":"Keep going.","fxg7":"Destroy.","Re1+":"Check!"}},
+    ],
+  },
+  {
+    id:"queens-gambit-exchange", title:"Exchange Variation QGD", badge:"Intermediate",
+    description:"White exchanges on d5 — minority attack setup.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Exchange on d5 and play the minority attack.",
+        moves:["d4","d5","c4","e6","Nc3","Nf6","cxd5","exd5","Bg5","Be7","e3","c6","Bd3","Nbd7","Nge2","O-O","O-O","Re8","Qc2","Nf8"],
+        moveExplanations:{"d4":"Center.","c4":"QGD.","Nc3":"Develop.","cxd5":"Exchange!","Bg5":"Pin.","e3":"Solid.","Bd3":"Develop.","Nge2":"Flexible.","O-O":"Castle.","Qc2":"Prepare minority attack."}},
+    ],
+  },
+  {
+    id:"blackmar-diemer", title:"Blackmar-Diemer Gambit", badge:"Intermediate",
+    description:"2.e4 dxe4 3.Nc3 — wild gambit against d5.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Sacrifice for rapid development!",
+        moves:["d4","d5","e4","dxe4","Nc3","Nf6","f3","exf3","Nxf3","g6","Bc4","Bg7","O-O","O-O","Qe1","c6"],
+        moveExplanations:{"d4":"Center.","e4":"Gambit!","Nc3":"Develop.","f3":"Recover.","Nxf3":"Develop.","Bc4":"Active bishop.","O-O":"Castle.","Qe1":"Centralize."}},
+    ],
+  },
+  {
+    id:"maroczy-bind", title:"Maroczy Bind", badge:"Advanced",
+    description:"c4 and e4 against the Sicilian — squeeze Black.",
+    duration:"1h", free:false, category:"Middlegame Strategies",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Build the Maroczy Bind and squeeze Black.",
+        moves:["e4","c5","Nf3","g6","d4","cxd4","Nxd4","Nc6","c4","Nf6","Nc3","d6","Be2","Nxd4","Qxd4","Bg7","Be3","O-O","Qd2","Be6"],
+        moveExplanations:{"e4":"Center.","Nf3":"Develop.","d4":"Open.","Nxd4":"Recapture.","c4":"The Bind!","Nf6":"Develop.","Nc3":"Develop.","Be2":"Develop.","Qxd4":"Centralize.","Bg7":"Develop.","Be3":"Develop.","O-O":"Castle.","Qd2":"Prepare.","Be6":"Counter."}},
+    ],
+  },
+  {
+    id:"accelerated-dragon", title:"Accelerated Dragon", badge:"Intermediate",
+    description:"Dragon setup without d6 — avoids the Yugoslav Attack.",
+    duration:"1h", free:false, category:"Semi-Open Games",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"Dragon setup on move 4 without playing d6.",
+        moves:["e4","c5","Nf3","Nc6","d4","cxd4","Nxd4","g6","Nc3","Bg7","Be3","Nf6","Bc4","O-O","Bb3","a5"],
+        moveExplanations:{"c5":"Sicilian.","Nc6":"Develop.","cxd4":"Open.","g6":"Dragon early!","Bg7":"Fianchetto.","Nf6":"Develop.","O-O":"Castle.","a5":"Queenside space."}},
+    ],
+  },
+  {
+    id:"ponziani-opening", title:"Ponziani Opening Deep", badge:"Beginner",
+    description:"More Ponziani lines and traps.",
+    duration:"1h", free:false, category:"Open Games (1.e4 e5)",
+    lines:[
+      { id:"jaenisch", title:"Jaenisch Variation", playerColor:"white",
+        explanation:"The sharpest Ponziani line.",
+        moves:["e4","e5","Nf3","Nc6","c3","Nf6","d4","Nxe4","d5","Ne7","Nxe5","Ng6","Nxg6","hxg6","Bd3","Bc5","O-O","d6"],
+        moveExplanations:{"e4":"Center.","Nf3":"Develop.","c3":"Ponziani.","Nf6":"Develop.","d4":"Attack.","Nxe4":"Take.","d5":"Push.","Nxe5":"Take.","Nxg6":"Trade.","Bd3":"Develop.","O-O":"Castle."}},
+    ],
+  },
+  {
+    id:"king-fianchetto", title:"King's Fianchetto Opening", badge:"Beginner",
+    description:"1.g3 — hypermodern fianchetto from move 1.",
+    duration:"1h", free:false, category:"Flank Openings",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"white",
+        explanation:"Fianchetto and control the long diagonal.",
+        moves:["g3","d5","Bg2","e5","d3","Nf6","Nf3","Nc6","O-O","Be7","Nbd2","O-O","e4","dxe4","dxe4","Be6"],
+        moveExplanations:{"g3":"Fianchetto!","Bg2":"The bishop.","d3":"Solid.","Nf3":"Develop.","O-O":"Castle.","Nbd2":"Develop.","e4":"Open.","dxe4":"Take."}},
+    ],
+  },
+  {
+    id:"benoni-czech", title:"Czech Benoni", badge:"Intermediate",
+    description:"c5 then e5 — solid Benoni setup.",
+    duration:"1h", free:false, category:"Closed Games (1.d4)",
+    lines:[
+      { id:"main", title:"Main Line", playerColor:"black",
+        explanation:"c5 and e5 — solid but counterattacking.",
+        moves:["d4","Nf6","c4","c5","d5","e5","Nc3","d6","e4","Be7","Nf3","O-O","Be2","Ne8","Nd2","g6"],
+        moveExplanations:{"Nf6":"Develop.","c5":"Benoni.","e5":"Czech!","d6":"Solid.","Be7":"Develop.","O-
